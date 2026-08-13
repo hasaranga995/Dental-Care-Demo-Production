@@ -1,13 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { desc, eq } from "drizzle-orm";
-import { PDFParse } from "pdf-parse";
+import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { knowledgeDocuments, type KnowledgeDocument } from "@/db/schema";
 import { requireRole } from "@/lib/auth";
 import { isCloudinaryConfigured, uploadKnowledgePdf } from "@/lib/cloudinary";
+import { getActiveKnowledgeDoc } from "@/lib/data/knowledge";
 
 export interface KnowledgeActionResult {
   success: boolean;
@@ -19,25 +19,6 @@ const MAX_KNOWLEDGE_PDF_BYTES = 20 * 1024 * 1024; // 20MB
 function revalidateKnowledgePaths() {
   revalidatePath("/admin/knowledge");
   revalidatePath("/api/chat");
-}
-
-/**
- * Latest active knowledge document for the chatbot system prompt.
- * Safe to call from the chat API route — returns null when none is uploaded.
- */
-export async function getActiveKnowledgeDoc(): Promise<KnowledgeDocument | null> {
-  try {
-    const [doc] = await db
-      .select()
-      .from(knowledgeDocuments)
-      .where(eq(knowledgeDocuments.isActive, true))
-      .orderBy(desc(knowledgeDocuments.createdAt))
-      .limit(1);
-    return doc ?? null;
-  } catch (error) {
-    console.warn("[actions/knowledge] getActiveKnowledgeDoc failed:", error);
-    return null;
-  }
 }
 
 /** Admin-only listing of the current active document (or null). */
@@ -84,6 +65,7 @@ export async function uploadAndSyncKnowledgePDF(
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
+    const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: buffer });
     const parsed = await parser.getText();
     await parser.destroy().catch(() => undefined);

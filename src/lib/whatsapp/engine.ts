@@ -2,7 +2,7 @@ import "server-only";
 
 import { generateText, stepCountIs, type ModelMessage } from "ai";
 import { google } from "@ai-sdk/google";
-import { getActiveKnowledgeDoc } from "@/actions/knowledge";
+import { getActiveKnowledgeDoc } from "@/lib/data/knowledge";
 import { buildWhatsAppReceptionistPrompt } from "@/lib/chat/knowledge";
 import { createDentalChatTools } from "@/lib/chat/tools";
 import { CLINIC } from "@/lib/clinic-config";

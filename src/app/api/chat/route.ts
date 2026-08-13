@@ -6,7 +6,7 @@ import {
 } from "ai";
 import { google } from "@ai-sdk/google";
 import { auth } from "@clerk/nextjs/server";
-import { getActiveKnowledgeDoc } from "@/actions/knowledge";
+import { getActiveKnowledgeDoc } from "@/lib/data/knowledge";
 import { buildChatSystemPrompt } from "@/lib/chat/knowledge";
 import { createDentalChatTools } from "@/lib/chat/tools";
 import { rateLimit } from "@/lib/redis";
