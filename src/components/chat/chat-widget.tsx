@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { AnimatePresence, motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
   ArrowUpRight,
@@ -175,12 +176,14 @@ export function ChatWidget() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [showGreeting, setShowGreeting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const openedHandoffs = useRef<Set<string>>(new Set());
   const { user, isSignedIn } = useUser();
 
   const userAvatar = isSignedIn ? user?.imageUrl || GUEST_AVATAR : GUEST_AVATAR;
   const userName = isSignedIn ? user?.fullName || user?.firstName || "You" : "You";
+  const signedInFirstName = isSignedIn ? user?.firstName || user?.fullName?.split(/\s+/)[0] || null : null;
 
   const transport = useMemo(
     () =>
@@ -196,11 +199,26 @@ export function ChatWidget() {
   });
 
   const isBusy = status === "submitted" || status === "streaming";
+  const isFreshChat = messages.length === 0;
+
+  useEffect(() => {
+    if (!open) {
+      setShowGreeting(false);
+      return;
+    }
+    if (!isFreshChat) {
+      setShowGreeting(true);
+      return;
+    }
+    setShowGreeting(false);
+    const timer = window.setTimeout(() => setShowGreeting(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [open, isFreshChat]);
 
   useEffect(() => {
     if (!open) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, open, status]);
+  }, [messages, open, status, showGreeting]);
 
   useEffect(() => {
     for (const message of messages) {
@@ -240,7 +258,7 @@ export function ChatWidget() {
         <div
           className="flex h-[min(34rem,calc(100dvh-7rem))] w-[min(24rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-primary/20"
           role="dialog"
-          aria-label={`${CLINIC.name} front desk chat`}
+          aria-label={`${CLINIC.name} customer care chat`}
         >
           <header className="flex items-start justify-between gap-3 bg-gradient-to-r from-[#0D4F5C] to-[#1A7A84] px-4 py-3 text-white">
             <div className="flex items-start gap-3">
@@ -251,10 +269,10 @@ export function ChatWidget() {
                 <span className="absolute right-0 bottom-0 size-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0D4F5C]" />
               </div>
               <div>
-                <p className="font-heading text-base font-semibold">Dental Care Reception</p>
+                <p className="font-heading text-base font-semibold">Customer Care Assistant</p>
                 <p className="flex items-center gap-1.5 text-xs text-white/80">
                   <span className="size-1.5 rounded-full bg-emerald-400" aria-hidden />
-                  Online · Instant booking &amp; inquiries
+                  {CLINIC.receptionistName} · Online · Instant help
                 </p>
               </div>
             </div>
@@ -262,7 +280,7 @@ export function ChatWidget() {
               type="button"
               onClick={() => setOpen(false)}
               className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-              aria-label="Close front desk chat"
+              aria-label="Close customer care chat"
             >
               <X className="size-4" />
             </button>
@@ -273,44 +291,89 @@ export function ChatWidget() {
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto bg-background px-3 pt-4 pb-4 scrollbar-thin scrollbar-thumb-teal-200/60 hover:scrollbar-thumb-teal-300">
-            {messages.length === 0 && (
-              <div className="space-y-3">
-                <div className="flex items-end gap-2">
-                  <FrontDeskAvatar />
-                  <div className="max-w-[85%] rounded-2xl rounded-tl-md bg-secondary px-3.5 py-3 text-sm text-foreground">
-                    Hello! I&apos;m {CLINIC.receptionistName} from the {CLINIC.name} front desk. I can help with
-                    hours, treatments, availability, and booking — how may I assist you today?
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 pl-11">
-                  {SUGGESTIONS.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => sendSuggestion(suggestion)}
-                      className="rounded-full border border-border bg-card px-3 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:border-brand-teal/40 hover:bg-accent"
+            {isFreshChat && (
+              <AnimatePresence mode="wait">
+                {!showGreeting ? (
+                  <motion.div
+                    key="tooth-intro"
+                    initial={{ opacity: 0, scale: 0.86 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.94, y: -8 }}
+                    transition={{ duration: 0.45, ease: "easeOut" }}
+                    className="flex min-h-[16rem] flex-col items-center justify-center gap-4 py-8"
+                  >
+                    <motion.span
+                      className="relative grid size-24 place-items-center rounded-full bg-gradient-to-br from-[#0D4F5C] to-[#1A7A84] text-brand-teal shadow-[0_18px_40px_-16px_rgba(13,79,92,0.75)] ring-4 ring-[#C8EBEF]/70"
+                      animate={{ scale: [1, 1.04, 1] }}
+                      transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
                     >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2 pl-11 pt-1">
-                  <Link
-                    href="/book"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold text-primary"
+                      <ToothLogo className="size-12" />
+                      <span className="absolute right-2 bottom-2 size-3 rounded-full bg-emerald-400 ring-2 ring-[#0D4F5C]" />
+                    </motion.span>
+                    <div className="text-center">
+                      <p className="font-heading text-lg font-semibold text-brand-navy">{CLINIC.name}</p>
+                      <p className="mt-1 text-xs font-medium tracking-wide text-brand-teal uppercase">
+                        Customer Care Assistant
+                      </p>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="greeting"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                    className="space-y-3"
                   >
-                    <CalendarCheck className="size-3.5" />
-                    Full booking page
-                  </Link>
-                  <Link
-                    href="/faq"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold text-primary"
-                  >
-                    <Clock3 className="size-3.5" />
-                    FAQ help center
-                  </Link>
-                </div>
-              </div>
+                    <div className="flex items-end gap-2">
+                      <FrontDeskAvatar />
+                      <div className="max-w-[85%] rounded-2xl rounded-tl-md bg-secondary px-3.5 py-3 text-sm text-foreground">
+                        {signedInFirstName ? (
+                          <>
+                            Hello {signedInFirstName}! I&apos;m {CLINIC.receptionistName}, your Customer Care
+                            assistant at {CLINIC.name}. I already have your account details — I can help with
+                            hours, treatments, availability, and booking. How may I assist you today?
+                          </>
+                        ) : (
+                          <>
+                            Hello! I&apos;m {CLINIC.receptionistName}, your Customer Care assistant at{" "}
+                            {CLINIC.name}. I can help with hours, treatments, availability, and booking — how may
+                            I assist you today?
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pl-11">
+                      {SUGGESTIONS.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          onClick={() => sendSuggestion(suggestion)}
+                          className="rounded-full border border-border bg-card px-3 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:border-brand-teal/40 hover:bg-accent"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2 pl-11 pt-1">
+                      <Link
+                        href="/book"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold text-primary"
+                      >
+                        <CalendarCheck className="size-3.5" />
+                        Full booking page
+                      </Link>
+                      <Link
+                        href="/faq"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold text-primary"
+                      >
+                        <Clock3 className="size-3.5" />
+                        FAQ help center
+                      </Link>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             )}
 
             {messages.map((message) => {
@@ -443,32 +506,78 @@ export function ChatWidget() {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        aria-label={open ? "Close front desk chat" : "Open front desk chat"}
-        className={cn(
-          "inline-flex items-center gap-2.5 rounded-full border border-brand-teal/35 bg-brand-navy py-2.5 pr-5 pl-2.5 text-sm font-semibold text-white shadow-xl transition-all duration-300",
-          "hover:-translate-y-0.5 hover:border-brand-teal/50 hover:shadow-brand-teal/15",
-          "focus-visible:ring-3 focus-visible:ring-brand-teal/40 focus-visible:outline-none"
-        )}
-      >
-        {open ? (
-          <X className="mx-1.5 size-5" />
-        ) : (
-          <span className="relative">
-            <span className="grid size-8 place-items-center rounded-full bg-brand-teal/20 text-brand-teal ring-2 ring-brand-teal/40">
-              <ToothLogo className="size-5" />
-            </span>
-            <span className="absolute right-0 bottom-0 flex size-2.5">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex size-2.5 rounded-full bg-emerald-400 ring-2 ring-brand-navy" />
-            </span>
-          </span>
-        )}
-        {open ? "Close" : "Front Desk"}
-      </button>
+      <div className="group relative">
+        {!open ? (
+          <div
+            className={cn(
+              "pointer-events-none absolute right-0 bottom-[calc(100%+0.85rem)] z-10 w-[min(15.5rem,calc(100vw-2rem))]",
+              "origin-bottom-right scale-95 opacity-0 transition-all duration-300 ease-out",
+              "group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100"
+            )}
+            role="tooltip"
+          >
+            <div className="relative overflow-hidden rounded-[1.75rem] rounded-br-lg border border-brand-navy/15 bg-[#F4FBFC] px-4 py-3.5 shadow-[0_20px_44px_-14px_rgba(13,79,92,0.55)]">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -top-8 -left-5 size-20 rounded-full bg-[#C8EBEF]/55 blur-2xl"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-4 -bottom-6 size-16 rounded-full bg-[#9FD4DA]/45 blur-2xl"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute top-1 right-3 size-8 rounded-full bg-white/80 blur-md"
+              />
+              <div className="relative">
+                <p className="text-[10px] font-bold tracking-[0.16em] text-[#0F7A86] uppercase">
+                  Customer Care
+                </p>
+                <p className="mt-1.5 font-heading text-[15px] font-semibold leading-snug text-[#0D4F5C]">
+                  Hi! I&apos;m your Customer Care assistant
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed font-medium text-[#3A5F66]">
+                  {CLINIC.receptionistName} is here to help with bookings, hours, and treatment questions.
+                </p>
+              </div>
+              <span
+                aria-hidden
+                className="absolute -bottom-2 right-6 size-4 rotate-45 rounded-sm border-r border-b border-brand-navy/15 bg-[#F4FBFC]"
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-label={open ? "Close customer care chat" : "Open customer care assistant"}
+          title={open ? "Close chat" : "Customer Care assistant"}
+          className={cn(
+            "relative grid size-14 place-items-center rounded-full border-2 border-white/80 bg-brand-navy text-brand-teal shadow-[0_16px_36px_-12px_rgba(13,79,92,0.75)] transition-all duration-300",
+            "hover:-translate-y-0.5 hover:border-brand-teal/60 hover:shadow-[0_20px_40px_-12px_rgba(26,122,132,0.55)]",
+            "focus-visible:ring-3 focus-visible:ring-brand-teal/40 focus-visible:outline-none",
+            open && "bg-brand-navy/95 text-white"
+          )}
+        >
+          {open ? (
+            <X className="size-6" strokeWidth={2.25} />
+          ) : (
+            <>
+              <span
+                aria-hidden
+                className="absolute inset-1 rounded-full bg-gradient-to-br from-brand-teal/25 via-transparent to-transparent"
+              />
+              <ToothLogo className="relative size-7" />
+              <span className="absolute right-1 bottom-1 flex size-2.5">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-emerald-400 ring-2 ring-brand-navy" />
+              </span>
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

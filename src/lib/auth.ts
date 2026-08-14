@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users, type User } from "@/db/schema";
 import { phoneIdentity, phoneMatchKey } from "@/lib/vip/phone";
+import { formatPatientEmail, formatPersonName, formatPhoneForStorage } from "@/lib/format-contact";
 
 export type AppRole = "patient" | "doctor" | "admin";
 
@@ -29,12 +30,16 @@ export async function getOrCreateCurrentUser(): Promise<User | null> {
   const existing = await getDbUserByClerkId(clerkUser.id);
   if (existing) return existing;
 
-  const email = clerkUser.emailAddresses[0]?.emailAddress ?? `${clerkUser.id}@no-email.local`;
-  const name =
+  const email = formatPatientEmail(
+    clerkUser.emailAddresses[0]?.emailAddress ?? `${clerkUser.id}@no-email.local`
+  );
+  const name = formatPersonName(
     [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ").trim() ||
-    email.split("@")[0];
+      email.split("@")[0]
+  );
   const roleFromMetadata = (clerkUser.publicMetadata?.role as AppRole | undefined) ?? "patient";
-  const phone = clerkUser.phoneNumbers[0]?.phoneNumber ?? null;
+  const phoneRaw = clerkUser.phoneNumbers[0]?.phoneNumber ?? null;
+  const phone = phoneRaw ? formatPhoneForStorage(phoneRaw) : null;
 
   const [created] = await db
     .insert(users)
@@ -102,16 +107,17 @@ export async function getOrCreateWhatsAppPatient(input: {
   name: string;
   email: string;
 }): Promise<User> {
-  const digits = input.phone.replace(/\D/g, "");
-  const clerkId = `whatsapp_${digits || "unknown"}`;
-  const email = input.email.trim().toLowerCase();
+  const email = formatPatientEmail(input.email);
   const identity = phoneIdentity(input.phone);
-  const name = input.name.trim();
+  const name = formatPersonName(input.name);
+  const phone = formatPhoneForStorage(input.phone);
+  const digits = identity.phoneNormalized || input.phone.replace(/\D/g, "");
+  const clerkId = `whatsapp_${digits || "unknown"}`;
 
   async function reuse(existing: User): Promise<User> {
     const patch = {
       name: name || existing.name,
-      phone: input.phone,
+      phone: phone || existing.phone,
       ...identity,
     };
 
@@ -150,7 +156,7 @@ export async function getOrCreateWhatsAppPatient(input: {
         email,
         name,
         role: "patient",
-        phone: input.phone,
+        phone,
         ...identity,
       })
       .onConflictDoNothing({ target: users.clerkId })

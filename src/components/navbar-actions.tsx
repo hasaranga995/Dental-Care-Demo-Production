@@ -48,8 +48,27 @@ export function NavbarActions() {
       {has("auth") ? (
         <>
           <Show when="signed-in">
-            <DashboardLink className="hidden lg:inline-flex" />
-            <UserButton />
+            <DashboardLink className="hidden lg:inline-flex" iconOnly />
+            <span className="inline-flex size-8 shrink-0 items-center justify-center">
+              <UserButton
+                showName={false}
+                appearance={{
+                  elements: {
+                    rootBox: {
+                      width: "2rem",
+                      height: "2rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    },
+                    userButtonBox: { gap: "0" },
+                    userButtonTrigger: { width: "2rem", height: "2rem" },
+                    userButtonAvatarBox: { width: "2rem", height: "2rem" },
+                    userButtonOuterIdentifier: { display: "none" },
+                  },
+                }}
+              />
+            </span>
           </Show>
           <Show when="signed-out">
             <Link

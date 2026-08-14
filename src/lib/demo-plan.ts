@@ -1,6 +1,6 @@
 export const DEMO_PLAN_COOKIE = "dh_plan";
 
-export type DemoPlanId = "presence" | "practice" | "premier";
+export type DemoPlanId = "presence" | "premier";
 
 export type PlanFeatureKey =
   | "multiPage"
@@ -27,17 +27,6 @@ export const PLAN_FEATURES: Record<DemoPlanId, PlanFeatures> = {
     whatsapp: false,
     sms: false,
   },
-  practice: {
-    multiPage: true,
-    auth: true,
-    booking: true,
-    admin: true,
-    fullAdmin: false,
-    vip: false,
-    ai: false,
-    whatsapp: false,
-    sms: false,
-  },
   premier: {
     multiPage: true,
     auth: true,
@@ -52,15 +41,14 @@ export const PLAN_FEATURES: Record<DemoPlanId, PlanFeatures> = {
 };
 
 export const PLAN_DISPLAY_NAME: Record<DemoPlanId, string> = {
-  presence: "Basic",
-  practice: "Signature",
+  presence: "Starter",
   premier: "Premium",
 };
 
 export type PlanListItem = {
   text: string;
   included: boolean;
-  spotlight?: "vip" | "ai" | "whatsapp";
+  spotlight?: "vip" | "ai" | "whatsapp" | "custom";
 };
 
 export type DemoPlanCatalogItem = {
@@ -85,10 +73,10 @@ export type DemoPlanCatalogItem = {
 export const DEMO_PLAN_CATALOG: DemoPlanCatalogItem[] = [
   {
     id: "presence",
-    name: "Basic",
+    name: "Starter",
     eyebrow: "Digital brochure",
     tagline: "A polished one-page hospital site so patients can find you, trust you, and call.",
-    cta: "Launch Basic demo",
+    cta: "Launch Starter demo",
     highlighted: false,
     features: [
       { text: "Single-page hospital website", included: true },
@@ -100,46 +88,12 @@ export const DEMO_PLAN_CATALOG: DemoPlanCatalogItem[] = [
       { text: "Patient sign-in & dashboard", included: false },
       { text: "Online appointment booking", included: false },
       { text: "Staff / admin portal", included: false },
-      { text: "AI Customer care, WhatsApp, SMS & VIP", included: false },
+      { text: "Fully Customisable", included: false },
+      { text: "AI Customer care, WhatsApp AI Bot, SMS & VIP", included: false },
     ],
     support: {
       title: "Customer support",
-      items: [
-        "Email support for the first month only",
-        "Help centre articles",
-      ],
-    },
-  },
-  {
-    id: "practice",
-    name: "Signature",
-    eyebrow: "Clinic website",
-    tagline: "Every page, online booking, and a staff portal — the operating website for a busy practice.",
-    cta: "Launch Signature demo",
-    highlighted: false,
-    features: [
-      { text: "All public pages (Home, Services, About, Team, FAQs, Contact)", included: true },
-      { text: "Online appointment booking", included: true },
-      { text: "Patient sign-in & personal dashboard", included: true },
-      { text: "Email appointment confirmations", included: true },
-      { text: "Basic admin: view, update, and cancel bookings", included: true },
-      { text: "Doctor portal", included: true },
-      { text: "VIP / VVIP patient recognition", included: false },
-      { text: "AI Customer care", included: false },
-      { text: "WhatsApp AI Bot", included: false },
-      { text: "SMS appointment alerts", included: false },
-    ],
-    support: {
-      title: "Customer support",
-      items: [
-        "Email + phone support",
-        "Next-business-day response",
-        "Onboarding call & staff walkthrough",
-      ],
-    },
-    backups: {
-      title: "Backups & reliability",
-      items: ["1-month backup retention"],
+      items: ["Email support for the first month only", "Help centre articles"],
     },
   },
   {
@@ -151,6 +105,7 @@ export const DEMO_PLAN_CATALOG: DemoPlanCatalogItem[] = [
     highlighted: true,
     badge: "Most Chosen",
     features: [
+      { text: "Fully Customisable", included: true, spotlight: "custom" },
       { text: "VIP / VVIP patient recognition", included: true, spotlight: "vip" },
       { text: "AI Customer care", included: true, spotlight: "ai" },
       { text: "WhatsApp AI Bot", included: true, spotlight: "whatsapp" },
@@ -160,7 +115,7 @@ export const DEMO_PLAN_CATALOG: DemoPlanCatalogItem[] = [
       { text: "Patient sign-in & personal dashboard", included: true },
       { text: "Email appointment confirmations", included: true },
       { text: "Doctor portal", included: true },
-      { text: "Full admin portal", included: true },
+      { text: "Fully customisable admin portal", included: true },
       { text: "SMS appointment alerts", included: true },
     ],
     support: {
@@ -170,16 +125,15 @@ export const DEMO_PLAN_CATALOG: DemoPlanCatalogItem[] = [
     backups: {
       title: "Backups & reliability",
       items: [
-        "Daily automated backups",
-        "99.99% uptime target",
-        "Disaster recovery available on discussion",
+        "99.9% uptime with Disaster Recovery",
+        "Backup and Reliability (available upon discussion)",
       ],
     },
   },
 ];
 
 export function isDemoPlanId(value: string | undefined | null): value is DemoPlanId {
-  return value === "presence" || value === "practice" || value === "premier";
+  return value === "presence" || value === "premier";
 }
 
 export function getPlanFeatures(plan: DemoPlanId | null): PlanFeatures {

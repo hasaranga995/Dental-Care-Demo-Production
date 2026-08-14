@@ -4,7 +4,7 @@ import { CLINIC } from "@/lib/clinic-config";
 
 export const metadata: Metadata = {
   title: `Choose a plan | ${CLINIC.name}`,
-  description: "Select Basic, Signature, or Premium to demo that version of the hospital website.",
+  description: "Select Starter or Premium to demo that version of the hospital website.",
 };
 
 export default function PlansPage() {

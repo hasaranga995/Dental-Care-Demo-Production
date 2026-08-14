@@ -29,6 +29,7 @@ import {
   updateAppointmentStatus,
 } from "@/actions/appointments";
 import type { AppointmentStatus } from "@/db/schema";
+import { cn } from "@/lib/utils";
 
 function formatSlotLabel(time: string): string {
   const [hour, minute] = time.split(":").map(Number);
@@ -229,6 +230,38 @@ export function RescheduleAppointmentDialog({
 
 const STATUS_OPTIONS: AppointmentStatus[] = ["pending", "confirmed", "completed", "cancelled"];
 
+const STATUS_TRIGGER_STYLES: Record<AppointmentStatus, string> = {
+  pending:
+    "border-amber-500 bg-amber-500 text-white shadow-sm hover:bg-amber-600 hover:text-white focus-visible:border-amber-500 focus-visible:ring-amber-400/40 [&_svg]:text-white!",
+  confirmed:
+    "border-emerald-600 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 hover:text-white focus-visible:border-emerald-600 focus-visible:ring-emerald-400/40 [&_svg]:text-white!",
+  completed:
+    "border-sky-600 bg-sky-600 text-white shadow-sm hover:bg-sky-700 hover:text-white focus-visible:border-sky-600 focus-visible:ring-sky-400/40 [&_svg]:text-white!",
+  cancelled:
+    "border-red-600 bg-red-600 text-white shadow-sm hover:bg-red-700 hover:text-white focus-visible:border-red-600 focus-visible:ring-red-400/40 [&_svg]:text-white!",
+};
+
+const STATUS_DOT_STYLES: Record<AppointmentStatus, string> = {
+  pending: "bg-amber-500",
+  confirmed: "bg-emerald-600",
+  completed: "bg-sky-600",
+  cancelled: "bg-red-600",
+};
+
+const STATUS_ITEM_STYLES: Record<AppointmentStatus, string> = {
+  pending: "text-amber-900 focus:bg-amber-50 focus:text-amber-950",
+  confirmed: "text-emerald-900 focus:bg-emerald-50 focus:text-emerald-950",
+  completed: "text-sky-900 focus:bg-sky-50 focus:text-sky-950",
+  cancelled: "text-red-800 focus:bg-red-50 focus:text-red-950",
+};
+
+const STATUS_LABELS: Record<AppointmentStatus, string> = {
+  pending: "Pending",
+  confirmed: "Confirmed",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
 export function AppointmentStatusSelect({
   appointmentId,
   status,
@@ -258,13 +291,29 @@ export function AppointmentStatusSelect({
 
   return (
     <Select value={status} onValueChange={handleChange} disabled={isPending}>
-      <SelectTrigger size="sm" className="w-36 capitalize">
-        <SelectValue />
+      <SelectTrigger
+        size="sm"
+        className={cn(
+          "w-[8.75rem] border-transparent font-semibold capitalize",
+          STATUS_TRIGGER_STYLES[status]
+        )}
+      >
+        <SelectValue>{STATUS_LABELS[status]}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {STATUS_OPTIONS.map((option) => (
-          <SelectItem key={option} value={option} className="capitalize">
-            {option}
+          <SelectItem
+            key={option}
+            value={option}
+            className={cn("font-medium capitalize", STATUS_ITEM_STYLES[option])}
+          >
+            <span className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className={cn("size-2.5 shrink-0 rounded-full", STATUS_DOT_STYLES[option])}
+              />
+              {STATUS_LABELS[option]}
+            </span>
           </SelectItem>
         ))}
       </SelectContent>

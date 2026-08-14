@@ -68,7 +68,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <html
         lang="en"
-        className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased [scrollbar-gutter:stable]`}
       >
         <body
           className="flex min-h-full flex-col overflow-x-clip bg-background text-foreground"

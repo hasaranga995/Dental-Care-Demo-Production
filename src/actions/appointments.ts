@@ -8,6 +8,7 @@ import { getOrCreateCurrentUser, getOrCreateWhatsAppPatient, requireRole, requir
 import type { User } from "@/db/schema";
 import { bookingSchema, rescheduleSchema, appointmentStatusUpdateSchema } from "@/lib/validations";
 import { enqueueAppointmentConfirmation, enqueueVipAlert } from "@/lib/qstash";
+import { formatPatientEmail, formatPersonName, formatPhoneForStorage } from "@/lib/format-contact";
 import { getDemoPlan } from "@/lib/demo-plan-server";
 import { getDoctorById } from "@/lib/data/doctors";
 import { getServiceBySlug } from "@/lib/data/services";
@@ -16,7 +17,7 @@ import { rateLimit } from "@/lib/redis";
 
 async function shouldSendPremierNotifications(): Promise<boolean> {
   const plan = await getDemoPlan();
-  return plan !== "practice" && plan !== "presence";
+  return plan === "premier";
 }
 
 export { getAvailableTimeSlots };
@@ -98,9 +99,9 @@ async function persistAppointment(currentUser: User, formData: FormData): Promis
         appointmentDate,
         status: "pending",
         notes: parsed.data.notes ?? "",
-        patientName: parsed.data.patientName,
-        patientEmail: parsed.data.patientEmail,
-        patientPhone: parsed.data.patientPhone,
+        patientName: formatPersonName(parsed.data.patientName),
+        patientEmail: formatPatientEmail(parsed.data.patientEmail),
+        patientPhone: formatPhoneForStorage(parsed.data.patientPhone),
         // Snapshot the tier so the appointment history stays accurate even if
         // the patient is promoted or demoted later.
         patientTier: currentUser.tier,
@@ -115,8 +116,7 @@ async function persistAppointment(currentUser: User, formData: FormData): Promis
     // The appointment is already committed at this point — a notification
     // failure (e.g. QStash/email being unreachable or misconfigured) must
     // never surface as a booking failure to the patient.
-    const plan = await getDemoPlan();
-    const premierFeatures = plan !== "practice" && plan !== "presence";
+    const premierFeatures = await shouldSendPremierNotifications();
     try {
       await enqueueAppointmentConfirmation({
         appointmentId: created.id,
@@ -303,7 +303,11 @@ export async function updateAppointmentStatus(formData: FormData): Promise<Actio
       .set({ status: parsed.data.status, updatedAt: new Date() })
       .where(eq(appointments.id, parsed.data.appointmentId));
 
-    if (parsed.data.status === "confirmed") {
+    if (
+      parsed.data.status === "confirmed" ||
+      parsed.data.status === "completed" ||
+      parsed.data.status === "cancelled"
+    ) {
       try {
         await enqueueAppointmentConfirmation({
           appointmentId: parsed.data.appointmentId,

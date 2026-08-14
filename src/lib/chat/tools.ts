@@ -3,7 +3,6 @@ import "server-only";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { createAppointment, createGuestAppointment } from "@/actions/appointments";
-import { getOrCreateCurrentUser } from "@/lib/auth";
 import { CLINIC, formatClinicDateLabel, getClinicClock, getClinicOpenStatus, getOperatingHoursList, getWhatsAppHref } from "@/lib/clinic-config";
 import { getAvailableTimeSlots } from "@/lib/data/availability";
 import { getAvailableDoctors, getDoctorById } from "@/lib/data/doctors";
@@ -13,6 +12,13 @@ import { tierLabel, type VipContext } from "@/lib/vip/identity";
 
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isUsableEmail(value: string | null | undefined): value is string {
+  const email = value?.trim().toLowerCase() ?? "";
+  if (!email || !email.includes("@")) return false;
+  if (email.endsWith("@no-email.local")) return false;
+  return true;
 }
 
 export type DentalChatChannel = "web" | "whatsapp";
@@ -213,37 +219,56 @@ export function createDentalChatTools(options: DentalChatToolOptions = {}) {
     bookAppointment: tool({
       description:
         channel === "whatsapp"
-          ? "Book an appointment after the patient has confirmed service, doctor, date, time, full name, email, and phone. Never book until they clearly confirm the summary."
-          : "Book an appointment for the currently signed-in patient. Requires serviceId (UUID or slug), doctorId, date, time, and patient contact fields. Do not call if the user is not signed in.",
+          ? "Book after the patient confirms service, doctor, date, time, full name, real email, and phone. Never invent name/email. Never use a placeholder email. WhatsApp number may be used as phone only after they confirm it. If they are a returning patient with a real name/email on file, you may use those and only ask for missing fields."
+          : "Book an appointment from website chat. Signed-in: use account name/email and only ask for mobile if missing. Guest (not signed in): you MUST collect full name, real email, and mobile from the patient in chat first — never invent them, never use a placeholder email, never require sign-in.",
       inputSchema: z.object({
         serviceId: z.string().describe("Service UUID or slug"),
         doctorId: z.string().uuid(),
         appointmentDate: z.string().describe("YYYY-MM-DD"),
         appointmentTime: z.string().describe("HH:mm from checkAvailability"),
-        patientName: z.string().min(2),
-        patientEmail: z.string().email(),
+        patientName: z
+          .string()
+          .min(2)
+          .optional()
+          .describe("Full name. Required for guests. Signed-in patients can omit if already on file."),
+        patientEmail: z
+          .string()
+          .email()
+          .optional()
+          .describe("Real email. Required for guests. Never invent or use a placeholder."),
         patientPhone: z.string().min(7).max(20).optional(),
         notes: z.string().max(1000).optional(),
       }),
       execute: async (input) => {
-        const patientPhone = input.patientPhone?.trim() || defaultPhone;
+        const knownIdentity = vip?.confidence === "verified";
+        const accountName = knownIdentity ? vip?.name?.trim() || "" : "";
+        const accountEmail = knownIdentity && isUsableEmail(vip?.email) ? vip.email.trim() : "";
+        const accountPhone = knownIdentity ? vip?.phone?.trim() || "" : "";
+
+        const patientName = input.patientName?.trim() || accountName;
+        const patientEmail = isUsableEmail(input.patientEmail)
+          ? input.patientEmail.trim()
+          : accountEmail;
+        const patientPhone = input.patientPhone?.trim() || defaultPhone || accountPhone;
+
+        if (!patientName) {
+          return {
+            success: false,
+            message: "Ask the patient for their full name before booking.",
+          };
+        }
+        if (!isUsableEmail(patientEmail)) {
+          return {
+            success: false,
+            message:
+              "Ask the patient for a real email address before booking. Do not invent one or use a placeholder.",
+          };
+        }
         if (!patientPhone) {
           return {
             success: false,
-            message: "A phone number is required to confirm the booking.",
+            message: "Ask the patient for their mobile number before booking.",
           };
-        }
-
-        if (channel !== "whatsapp") {
-          const user = await getOrCreateCurrentUser();
-          if (!user) {
-            return {
-              success: false,
-              message:
-                "The patient is not signed in. Ask them to sign in at /sign-in, then try booking again.",
-              signInUrl: "/sign-in?redirect_url=/book",
-            };
-          }
         }
 
         const slots = await getAvailableTimeSlots(input.doctorId, input.appointmentDate);
@@ -255,11 +280,14 @@ export function createDentalChatTools(options: DentalChatToolOptions = {}) {
           };
         }
 
+        const isGuestWeb = channel !== "whatsapp" && !knownIdentity;
         const baseNote =
           input.notes ??
-          (channel === "whatsapp" ? "Booked via WhatsApp front desk" : "Booked via website front desk");
-        // Tag the note so the tier is visible to staff reading the raw
-        // appointment, independent of the badge in the admin UI.
+          (channel === "whatsapp"
+            ? "Booked via WhatsApp front desk"
+            : isGuestWeb
+              ? "Booked via website chat (guest)"
+              : "Booked via website front desk");
         const notes = vip?.recognized ? `[${tierLabel(vip.tier)}] ${baseNote}` : baseNote;
 
         const formData = new FormData();
@@ -267,22 +295,22 @@ export function createDentalChatTools(options: DentalChatToolOptions = {}) {
         formData.set("doctorId", input.doctorId);
         formData.set("appointmentDate", input.appointmentDate);
         formData.set("appointmentTime", input.appointmentTime);
-        formData.set("patientName", input.patientName);
-        formData.set("patientEmail", input.patientEmail);
+        formData.set("patientName", patientName);
+        formData.set("patientEmail", patientEmail);
         formData.set("patientPhone", patientPhone);
         formData.set("bookingChannel", channel);
         formData.set("notes", notes);
 
         const result =
-          channel === "whatsapp"
+          channel === "whatsapp" || isGuestWeb
             ? await createGuestAppointment(formData)
             : await createAppointment(formData);
 
         return {
           ...result,
-          dashboardUrl: result.success && channel !== "whatsapp" ? "/dashboard" : undefined,
+          dashboardUrl: result.success && channel !== "whatsapp" && knownIdentity ? "/dashboard" : undefined,
           whatsappConfirmation: result.success
-            ? `Your appointment request is in our diary as pending.\n\n• ${input.patientName}\n• ${input.appointmentDate} at ${input.appointmentTime}\n\nYou'll get an email shortly. Please arrive 10 minutes early.`
+            ? `Your appointment request is in our diary as pending.\n\n• ${patientName}\n• ${input.appointmentDate} at ${input.appointmentTime}\n\nYou'll get an email shortly. Please arrive 10 minutes early.`
             : undefined,
         };
       },

@@ -82,6 +82,22 @@ export function splitFullName(fullName: string): { firstName: string; lastName: 
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
 
+/** Clerk-safe username from email (or name fallback). */
+export function usernameFromEmail(email: string, fullName = ""): string {
+  const local = email.trim().split("@")[0] || "";
+  let base = local.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+  if (base.length < 3) {
+    base = fullName
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "");
+  }
+  if (base.length < 3) base = `user_${Date.now().toString(36)}`;
+  return base.slice(0, 28);
+}
+
 export function GoogleIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden>

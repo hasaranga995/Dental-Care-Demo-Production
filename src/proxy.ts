@@ -56,26 +56,6 @@ const isPresenceBlocked = createRouteMatcher([
   "/api/whatsapp/(.*)",
 ]);
 
-const isPracticeBlocked = createRouteMatcher([
-  "/admin/patients",
-  "/admin/patients/(.*)",
-  "/admin/vip-desk",
-  "/admin/vip-desk/(.*)",
-  "/admin/banners",
-  "/admin/banners/(.*)",
-  "/admin/hero-video",
-  "/admin/hero-video/(.*)",
-  "/admin/category-images",
-  "/admin/category-images/(.*)",
-  "/admin/knowledge",
-  "/admin/knowledge/(.*)",
-  "/admin/support",
-  "/admin/support/(.*)",
-  "/whatsapp-lab",
-  "/api/chat",
-  "/api/whatsapp/(.*)",
-]);
-
 function readPlan(req: { cookies: { get: (name: string) => { value: string } | undefined } }): DemoPlanId | null {
   const value = req.cookies.get(DEMO_PLAN_COOKIE)?.value;
   return isDemoPlanId(value) ? value : null;
@@ -96,11 +76,6 @@ export default clerkMiddleware(async (auth, req) => {
 
   if (plan === "presence" && isPresenceBlocked(req)) {
     return NextResponse.redirect(new URL("/", req.url));
-  }
-
-  if (plan === "practice" && isPracticeBlocked(req)) {
-    const dest = req.nextUrl.pathname.startsWith("/admin") ? "/admin" : "/";
-    return NextResponse.redirect(new URL(dest, req.url));
   }
 
   if (isPublicRoute(req)) {

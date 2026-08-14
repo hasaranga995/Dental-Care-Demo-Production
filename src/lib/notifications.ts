@@ -13,12 +13,9 @@ export interface AppointmentConfirmationResult {
 }
 
 /**
- * Looks up an appointment and sends confirmation email + SMS, marking
- * `confirmationEmailSent` on email success. This is the single source of truth for
- * "what happens when an appointment confirmation job runs" — it's called
- * both from the `/api/webhooks/qstash` route (production, real QStash
- * delivery) and directly, in-process, as a local-development fallback when
- * QStash can't reach a `localhost` destination (see `src/lib/qstash.ts`).
+ * Looks up an appointment and sends status email + SMS (pending / confirmed /
+ * completed / cancelled), marking `confirmationEmailSent` on email success.
+ * Called from `/api/webhooks/qstash` and the local QStash fallback in `qstash.ts`.
  */
 export async function processAppointmentConfirmation(
   appointmentId: string,

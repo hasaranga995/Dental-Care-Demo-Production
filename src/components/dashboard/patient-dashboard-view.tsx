@@ -89,7 +89,7 @@ function statusStyle(status: DashboardAppointmentCard["status"]) {
   if (status === "confirmed") return "bg-emerald-100 text-emerald-800";
   if (status === "pending") return "bg-amber-100 text-amber-800";
   if (status === "completed") return "bg-sky-100 text-sky-800";
-  return "bg-rose-100 text-rose-800";
+  return "bg-red-100 text-red-800";
 }
 
 function statusLabel(status: DashboardAppointmentCard["status"]) {

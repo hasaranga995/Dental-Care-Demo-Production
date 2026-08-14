@@ -229,7 +229,7 @@ export function SupportSlaGuide() {
               Service levels
             </p>
             <h2 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-white">
-              Support SLA
+              Support SLA (Available for 24/7 support service)
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
               Choose the priority that matches the real impact. Response and resolution clocks start

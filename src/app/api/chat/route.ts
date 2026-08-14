@@ -6,6 +6,7 @@ import {
 } from "ai";
 import { google } from "@ai-sdk/google";
 import { auth } from "@clerk/nextjs/server";
+import { getOrCreateCurrentUser } from "@/lib/auth";
 import { getActiveKnowledgeDoc } from "@/lib/data/knowledge";
 import { buildChatSystemPrompt } from "@/lib/chat/knowledge";
 import { createDentalChatTools } from "@/lib/chat/tools";
@@ -50,6 +51,11 @@ export async function POST(req: Request) {
   const recentMessages = messages.slice(-24);
   const isSignedIn = Boolean(userId);
 
+  // Ensure the Postgres patient row exists for Clerk sessions (local/dev without webhook).
+  if (userId) {
+    await getOrCreateCurrentUser();
+  }
+
   // Only a Clerk session counts as a verified identity on the web. Anonymous
   // visitors never unlock VIP handling, so nobody can impersonate a VIP by
   // typing their phone number into the public chat box.
@@ -58,7 +64,11 @@ export async function POST(req: Request) {
     userId ? resolvePatientIdentity({ clerkId: userId }) : Promise.resolve(ANONYMOUS_VIP_CONTEXT),
   ]);
 
-  const tools = createDentalChatTools({ channel: "web", vip });
+  const tools = createDentalChatTools({
+    channel: "web",
+    vip,
+    patientPhone: vip.phone ?? undefined,
+  });
 
   const result = streamText({
     model: google("gemini-2.5-flash"),

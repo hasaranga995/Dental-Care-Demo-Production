@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { Check, Crown, Headphones, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Check, Crown, Headphones, ShieldCheck, Sparkles, Wand2, X } from "lucide-react";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
 import { selectDemoPlan } from "@/actions/demo-plan";
 import { ToothLogo } from "@/components/tooth-logo";
@@ -65,13 +65,16 @@ function PlanCard({
               className={cn(
                 "flex items-start gap-2.5 text-sm",
                 spotlight && "-mx-1 rounded-xl px-2 py-2",
+                spotlight === "custom" && "bg-amber-50 ring-1 ring-amber-300/70",
                 spotlight === "vip" && "bg-[#007acc]/10 ring-1 ring-[#007acc]/25",
                 spotlight === "ai" && "bg-sky-50 ring-1 ring-sky-200",
                 spotlight === "whatsapp" && "bg-[#25D366]/10 ring-1 ring-[#25D366]/30"
               )}
             >
               {item.included ? (
-                spotlight === "vip" ? (
+                spotlight === "custom" ? (
+                  <Wand2 className="mt-0.5 size-4 shrink-0 text-amber-600" strokeWidth={2.25} />
+                ) : spotlight === "vip" ? (
                   <Crown className="mt-0.5 size-4 shrink-0" style={{ color: BLUE }} strokeWidth={2.25} />
                 ) : spotlight === "ai" ? (
                   <Sparkles className="mt-0.5 size-4 shrink-0" style={{ color: BLUE }} strokeWidth={2.25} />
@@ -94,9 +97,22 @@ function PlanCard({
                 {spotlight ? (
                   <span
                     className="ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase"
-                    style={{ backgroundColor: BLUE }}
+                    style={{
+                      backgroundColor:
+                        spotlight === "custom"
+                          ? "#d97706"
+                          : spotlight === "whatsapp"
+                            ? "#25D366"
+                            : BLUE,
+                    }}
                   >
-                    {spotlight === "vip" ? "VIP" : spotlight === "whatsapp" ? "AI Bot" : "AI"}
+                    {spotlight === "vip"
+                      ? "VIP"
+                      : spotlight === "whatsapp"
+                        ? "AI Bot"
+                        : spotlight === "custom"
+                          ? "Custom"
+                          : "AI"}
                   </span>
                 ) : null}
               </span>
@@ -175,7 +191,7 @@ export function PlansView() {
           Choose a subscription
         </h1>
 
-        <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-3">
+        <div className="mx-auto mt-8 grid max-w-[46rem] items-stretch gap-6 md:grid-cols-2">
           {DEMO_PLAN_CATALOG.map((plan) => (
             <PlanCard key={plan.id} plan={plan} onSelect={handleSelect} pending={pending} />
           ))}

@@ -33,6 +33,8 @@ export interface VipContext {
   patientId: string | null;
   name: string | null;
   firstName: string | null;
+  email: string | null;
+  phone: string | null;
   tier: PatientTier;
   isVip: boolean;
   /** True only when VIP status is confirmed against a verified identity. */
@@ -48,6 +50,8 @@ export const ANONYMOUS_VIP_CONTEXT: VipContext = {
   patientId: null,
   name: null,
   firstName: null,
+  email: null,
+  phone: null,
   tier: "standard",
   isVip: false,
   recognized: false,
@@ -152,6 +156,8 @@ async function buildContext(
     patientId: user.id,
     name: user.name,
     firstName: firstNameOf(user.name),
+    email: user.email,
+    phone: user.phone?.trim() || null,
     tier: user.tier,
     isVip,
     recognized: isVip && confidence === "verified",
