@@ -134,8 +134,13 @@ export function SignUpView() {
     return true;
   }
 
+  function isSignUpComplete() {
+    // Clerk mutates `signUp.status` after update/verify; don't let TS keep a stale union.
+    return (signUp.status as string) === "complete";
+  }
+
   async function completeIfReady() {
-    if (signUp.status === "complete") {
+    if (isSignUpComplete()) {
       return finalizeSignUp();
     }
 
@@ -145,7 +150,7 @@ export function SignUpView() {
       return false;
     }
 
-    if (signUp.status === "complete") {
+    if (isSignUpComplete()) {
       return finalizeSignUp();
     }
 
@@ -278,7 +283,7 @@ export function SignUpView() {
         return;
       }
 
-      if (signUp.status === "complete") {
+      if (isSignUpComplete()) {
         await finalizeSignUp();
         return;
       }
@@ -289,7 +294,7 @@ export function SignUpView() {
         return;
       }
 
-      if (signUp.status === "complete") {
+      if (isSignUpComplete()) {
         await finalizeSignUp();
         return;
       }
