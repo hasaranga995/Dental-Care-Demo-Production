@@ -139,6 +139,7 @@ async function persistAppointment(currentUser: User, formData: FormData): Promis
 
     revalidatePath("/dashboard");
     revalidatePath("/admin");
+    revalidatePath("/admin/patients");
 
     return {
       success: true,
@@ -158,6 +159,12 @@ export async function createAppointment(formData: FormData): Promise<ActionResul
   const currentUser = await getOrCreateCurrentUser();
   if (!currentUser) {
     return { success: false, message: "Please sign in to book an appointment." };
+  }
+
+  // Staff testing the public book flow must not attach the visit to their
+  // admin/doctor row — Patients & VIP only lists role=patient.
+  if (currentUser.role !== "patient") {
+    return createGuestAppointment(formData);
   }
 
   return persistAppointment(currentUser, formData);

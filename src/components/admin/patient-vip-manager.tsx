@@ -64,6 +64,10 @@ const FILTER_OPTIONS = [
   { value: "standard", label: "Standard only" },
 ];
 
+function displayPatientEmail(email: string): string {
+  return email.replace(/\+p\d+(?:\.\d+)?@/, "@");
+}
+
 function formatDate(value: string | null): string {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("en-GB", {
@@ -312,7 +316,7 @@ export function PatientDirectoryTable({
                 )}
               </TableCell>
               <TableCell>
-                <p className="text-sm text-foreground">{patient.email}</p>
+                <p className="text-sm text-foreground">{displayPatientEmail(patient.email)}</p>
                 <p className="text-xs text-muted-foreground">{patient.phone || "No phone on file"}</p>
               </TableCell>
               <TableCell className="text-foreground">{patient.appointmentCount}</TableCell>

@@ -135,7 +135,7 @@ export async function getOrCreateWhatsAppPatient(input: {
   }
 
   const [byClerk] = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
-  if (byClerk) return reuse(byClerk);
+  if (byClerk?.role === "patient") return reuse(byClerk);
 
   const key = phoneMatchKey(input.phone);
   if (key) {
@@ -145,15 +145,17 @@ export async function getOrCreateWhatsAppPatient(input: {
 
   if (email) {
     const [byEmail] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (byEmail) return reuse(byEmail);
+    if (byEmail?.role === "patient") return reuse(byEmail);
   }
+
+  const emailToInsert = await uniquePatientEmail(email, digits);
 
   try {
     const [created] = await db
       .insert(users)
       .values({
         clerkId,
-        email,
+        email: emailToInsert,
         name,
         role: "patient",
         phone,
@@ -168,14 +170,37 @@ export async function getOrCreateWhatsAppPatient(input: {
   }
 
   const [again] = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
-  if (again) return again;
+  if (again?.role === "patient") return again;
 
   if (email) {
     const [byEmailAgain] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (byEmailAgain) return byEmailAgain;
+    if (byEmailAgain?.role === "patient") return byEmailAgain;
   }
 
+  const [byUniqueEmail] = await db.select().from(users).where(eq(users.email, emailToInsert)).limit(1);
+  if (byUniqueEmail?.role === "patient") return reuse(byUniqueEmail);
+
   throw new Error("Could not create a WhatsApp patient record.");
+}
+
+/** Emails are unique. If a doctor/admin already owns the address, tag a patient copy. */
+async function uniquePatientEmail(preferred: string, digits: string): Promise<string> {
+  if (!preferred) {
+    return digits ? `guest.${digits}@patients.dentalcare.local` : `guest.${Date.now()}@patients.dentalcare.local`;
+  }
+
+  const [owner] = await db.select({ role: users.role }).from(users).where(eq(users.email, preferred)).limit(1);
+  if (!owner || owner.role === "patient") return preferred;
+
+  const at = preferred.lastIndexOf("@");
+  const local = at > 0 ? preferred.slice(0, at) : preferred;
+  const domain = at > 0 ? preferred.slice(at + 1) : "patients.dentalcare.local";
+  const tagged = `${local}+p${digits || "guest"}@${domain}`;
+
+  const [taggedOwner] = await db.select({ id: users.id }).from(users).where(eq(users.email, tagged)).limit(1);
+  if (!taggedOwner) return tagged;
+
+  return `${local}+p${digits || "guest"}.${Date.now()}@${domain}`;
 }
 
 export function defaultRouteForRole(role: AppRole): string {

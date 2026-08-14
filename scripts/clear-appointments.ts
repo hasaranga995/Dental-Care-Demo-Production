@@ -1,6 +1,6 @@
 /**
- * Deletes all appointments and related VIP-alert rows.
- * Keeps users (patients), doctors, and services.
+ * Deletes all appointments, related VIP-alert rows, and patient users.
+ * Keeps doctors, admins, services, and staff alert subscribers.
  *
  * Usage: `npx tsx scripts/clear-appointments.ts`
  */
@@ -32,6 +32,7 @@ async function main() {
   const deliveries = await sql`DELETE FROM vip_alert_deliveries RETURNING id`;
   const alerts = await sql`DELETE FROM vip_alerts RETURNING id`;
   const bookings = await sql`DELETE FROM appointments RETURNING id`;
+  const patients = await sql`DELETE FROM users WHERE role = 'patient' RETURNING id`;
 
   const [after] = await sql`
     SELECT
@@ -42,7 +43,7 @@ async function main() {
   `;
 
   console.log(
-    `Deleted ${bookings.length} appointment(s), ${alerts.length} VIP alert(s), ${deliveries.length} delivery row(s).`
+    `Deleted ${bookings.length} appointment(s), ${patients.length} patient(s), ${alerts.length} VIP alert(s), ${deliveries.length} delivery row(s).`
   );
   console.log("After:", after);
 }

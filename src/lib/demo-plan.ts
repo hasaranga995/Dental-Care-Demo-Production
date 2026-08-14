@@ -123,11 +123,8 @@ export const DEMO_PLAN_CATALOG: DemoPlanCatalogItem[] = [
       items: ["24/7 customer support", "30-minute critical-issue response"],
     },
     backups: {
-      title: "Backups & reliability",
-      items: [
-        "99.9% uptime with Disaster Recovery",
-        "Backup and Reliability (available upon discussion)",
-      ],
+      title: "Backups & reliability (available upon discussion)",
+      items: ["99.9% uptime with Disaster Recovery"],
     },
   },
 ];
