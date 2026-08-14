@@ -32,7 +32,7 @@ export function formatPatientEmail(raw: string | null | undefined): string {
 }
 
 /** Real inbox we can email — not placeholders or internal +p tags. */
-export function isPublicPatientEmail(value: string | null | undefined): value is string {
+export function isPublicPatientEmail(value: string | null | undefined): boolean {
   const email = formatPatientEmail(value);
   if (!email || !email.includes("@")) return false;
   if (email.endsWith("@no-email.local")) return false;
