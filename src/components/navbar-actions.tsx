@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LogIn, PhoneCall } from "lucide-react";
 import { Show, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import { BookAppointmentLink } from "@/components/booking/book-appointment-link";
 import { DashboardLink } from "@/components/dashboard-link";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
 import { CLINIC, getWhatsAppHref } from "@/lib/clinic-config";
@@ -100,7 +101,7 @@ export function NavbarActions() {
           size="sm"
           variant="accent"
           className="hidden shrink-0 sm:inline-flex"
-          render={<Link href="/book" />}
+          render={<BookAppointmentLink href="/book" />}
         >
           Book Appointment
         </Button>

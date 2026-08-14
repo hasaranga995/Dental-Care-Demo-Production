@@ -22,6 +22,7 @@ const isPublicRoute = createRouteMatcher([
   "/team",
   "/contact",
   "/faq",
+  "/book(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/sso-callback(.*)",
@@ -31,7 +32,7 @@ const isPublicRoute = createRouteMatcher([
   "/whatsapp-lab",
 ]);
 
-const isPatientRoute = createRouteMatcher(["/dashboard(.*)", "/book(.*)"]);
+const isPatientRoute = createRouteMatcher(["/dashboard(.*)"]);
 const isStaffRoute = createRouteMatcher(["/admin(.*)", "/doctor-portal(.*)"]);
 const isPlansRoute = createRouteMatcher(["/plans", "/plans/(.*)"]);
 const isWebhookRoute = createRouteMatcher(["/api/webhooks/(.*)"]);

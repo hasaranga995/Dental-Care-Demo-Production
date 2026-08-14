@@ -7,6 +7,7 @@ import { Show } from "@clerk/nextjs";
 import { LayoutDashboard, LogIn, Menu, PhoneCall } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import { BookAppointmentLink } from "@/components/booking/book-appointment-link";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { ToothLogo } from "@/components/tooth-logo";
 import { WhatsAppIcon } from "@/components/whatsapp-icon";
@@ -129,7 +130,7 @@ export function NavbarMobileMenu() {
           ) : null}
           {has("booking") ? (
             <SheetClose
-              render={<Button variant="accent" className="justify-start" render={<Link href="/book" />} />}
+              render={<Button variant="accent" className="justify-start" render={<BookAppointmentLink href="/book" />} />}
             >
               Book Appointment
             </SheetClose>

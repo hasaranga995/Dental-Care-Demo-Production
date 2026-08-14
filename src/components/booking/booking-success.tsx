@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { formatSlotLabel, formatVisitDateLong } from "@/components/booking/booking-utils";
 import { useDemoPlan } from "@/components/demo/demo-plan-provider";
@@ -22,6 +23,7 @@ export function BookingSuccess({
   email: string;
 }) {
   const { has } = useDemoPlan();
+  const { isSignedIn } = useAuth();
   return (
     <div className="mx-auto max-w-xl rounded-xl border border-border bg-white p-8 text-center sm:p-10">
       <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -55,14 +57,22 @@ export function BookingSuccess({
 
       <p className="mt-5 text-xs text-muted-foreground">
         A confirmation email is on its way to {email}
-        {has("sms") ? ", and an SMS is sent to your mobile" : ""}. You can manage this appointment
-        anytime from your dashboard.
+        {has("sms") ? ", and an SMS is sent to your mobile" : ""}.
+        {isSignedIn
+          ? " You can manage this appointment anytime from your dashboard."
+          : " Create an account if you want to manage this visit from a dashboard later."}
       </p>
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-        <Button size="lg" render={<Link href="/dashboard" />}>
-          Go to My Dashboard
-        </Button>
+        {isSignedIn ? (
+          <Button size="lg" render={<Link href="/dashboard" />}>
+            Go to My Dashboard
+          </Button>
+        ) : (
+          <Button size="lg" render={<Link href="/sign-up" />}>
+            Create an Account
+          </Button>
+        )}
         <Button size="lg" variant="outline" render={<Link href="/" />}>
           Return Home
         </Button>

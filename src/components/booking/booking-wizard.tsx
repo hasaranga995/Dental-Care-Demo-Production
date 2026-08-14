@@ -14,7 +14,8 @@ import {
 } from "@/components/booking/booking-steps";
 import { BookingSuccess } from "@/components/booking/booking-success";
 import { BOOKING_STEPS, toDateInputValue } from "@/components/booking/booking-utils";
-import { createAppointment, getAvailableTimeSlots, type ActionResult } from "@/actions/appointments";
+import { useAuth } from "@clerk/nextjs";
+import { createAppointment, createGuestAppointment, getAvailableTimeSlots, type ActionResult } from "@/actions/appointments";
 import type { DoctorWithUser } from "@/lib/data/doctors";
 import type { ServiceWithParsed } from "@/lib/data/services";
 
@@ -39,6 +40,7 @@ export function BookingWizard({
   defaultEmail,
   defaultPhone,
 }: BookingWizardProps) {
+  const { isSignedIn } = useAuth();
   const initialService = useMemo(
     () => services.find((s) => s.slug === initialServiceSlug) ?? null,
     [services, initialServiceSlug]
@@ -156,7 +158,7 @@ export function BookingWizard({
     formData.set("notes", notes.trim());
 
     startSubmit(async () => {
-      const res = await createAppointment(formData);
+      const res = isSignedIn ? await createAppointment(formData) : await createGuestAppointment(formData);
       setResult(res);
       if (res.success) {
         setStep(6);

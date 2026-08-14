@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CalendarCheck, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BookAppointmentLink } from "@/components/booking/book-appointment-link";
 import { CLINIC } from "@/lib/clinic-config";
 import { useDemoPlan } from "@/components/demo/demo-plan-provider";
 import type { PlanFeatureKey } from "@/lib/demo-plan";
@@ -38,7 +39,7 @@ export function BookOrCallButton({
 
   if (has("booking")) {
     return (
-      <Button size={size} variant={variant} className={className} render={<Link href="/book" />}>
+      <Button size={size} variant={variant} className={className} render={<BookAppointmentLink href="/book" />}>
         <CalendarCheck className="size-5" />
         {bookLabel}
       </Button>
