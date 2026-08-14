@@ -31,6 +31,16 @@ export function formatPatientEmail(raw: string | null | undefined): string {
   return raw?.trim().toLowerCase() ?? "";
 }
 
+/** Real inbox we can email — not placeholders or internal +p tags. */
+export function isPublicPatientEmail(value: string | null | undefined): value is string {
+  const email = formatPatientEmail(value);
+  if (!email || !email.includes("@")) return false;
+  if (email.endsWith("@no-email.local")) return false;
+  if (email.endsWith("@patients.dentalcare.local")) return false;
+  if (/\+p\d+/.test(email.split("@")[0] ?? "")) return false;
+  return true;
+}
+
 /**
  * Canonical stored mobile: E.164 with a leading plus.
  * `0712345678`, `94712345678`, and `+94 71 234 5678` all become `+94712345678`.

@@ -35,7 +35,7 @@ function toCard(
 
 export default async function DashboardPage() {
   const currentUser = await requireUser();
-  const appointments = await getAppointmentsForPatient(currentUser.id);
+  const appointments = await getAppointmentsForPatient(currentUser);
   const now = new Date();
 
   const upcoming = appointments

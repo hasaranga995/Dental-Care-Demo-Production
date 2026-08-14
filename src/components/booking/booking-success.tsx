@@ -2,10 +2,16 @@
 
 import Link from "next/link";
 import { Check } from "lucide-react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { formatSlotLabel, formatVisitDateLong } from "@/components/booking/booking-utils";
 import { useDemoPlan } from "@/components/demo/demo-plan-provider";
+
+function dashboardHrefForRole(role: string | undefined) {
+  if (role === "admin") return "/admin";
+  if (role === "doctor") return "/doctor-portal";
+  return "/dashboard";
+}
 
 export function BookingSuccess({
   message,
@@ -24,6 +30,10 @@ export function BookingSuccess({
 }) {
   const { has } = useDemoPlan();
   const { isSignedIn } = useAuth();
+  const { user } = useUser();
+  const role = (user?.publicMetadata?.role as string | undefined) ?? "patient";
+  const dashboardHref = dashboardHrefForRole(role);
+
   return (
     <div className="mx-auto max-w-xl rounded-xl border border-border bg-white p-8 text-center sm:p-10">
       <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -65,7 +75,7 @@ export function BookingSuccess({
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
         {isSignedIn ? (
-          <Button size="lg" render={<Link href="/dashboard" />}>
+          <Button size="lg" render={<Link href={dashboardHref} />}>
             Go to My Dashboard
           </Button>
         ) : (

@@ -2,6 +2,7 @@ import "server-only";
 
 import { CLINIC, getClinicClock, getClinicOpenStatus, getOperatingHoursList } from "@/lib/clinic-config";
 import { CLINIC_FAQS } from "@/lib/data/faqs";
+import { isPublicPatientEmail } from "@/lib/format-contact";
 import type { VipContext } from "@/lib/vip/identity";
 
 /**
@@ -71,7 +72,8 @@ export function buildVipPromptBlock(vip: VipContext | null | undefined): string 
     `You already know who this is: *${vip.name}*, a long-standing ${label} patient of the hospital.`,
   ];
 
-  if (vip.email) lines.push(`Email on file: ${vip.email}`);
+  if (vip.email && isPublicPatientEmail(vip.email)) lines.push(`Email on file: ${vip.email}`);
+  else lines.push("Email on file: none — ask for a real email before booking. Never invent one.");
   if (vip.phone) lines.push(`Mobile on file: ${vip.phone}`);
   else lines.push("No mobile on file — ask only for their mobile number when booking.");
 
@@ -100,7 +102,7 @@ export function buildVipPromptBlock(vip: VipContext | null | undefined): string 
     "- Offer the earliest and most convenient times you can find; be proactive rather than making them ask.",
     "- Use their notes to anticipate preferences, but never read the notes out or quote them back.",
     "- After booking, tell them our patient relations team will personally follow up to confirm the arrangements.",
-    "- When booking, use their name and email from this section. Do not re-ask for name or email. Ask for mobile only if none is on file.",
+    "- When booking, use their name and a real email. If email is missing or not a real inbox, ask for one. Do not re-ask for name unless they want to change it. Ask for mobile only if none is on file.",
     "",
     "Hard rules:",
     '- NEVER say "VIP", "VVIP", "priority patient", "tier", "flagged", "your record", "the system", or "our database".',
@@ -121,7 +123,7 @@ export function buildSignedInPatientPromptBlock(vip: VipContext | null | undefin
   if (vip.recognized) return ""; // VIP block already covers this patient
 
   const firstName = vip.firstName ?? vip.name;
-  const realEmail = vip.email && !vip.email.toLowerCase().endsWith("@no-email.local") ? vip.email : null;
+  const realEmail = isPublicPatientEmail(vip.email) ? vip.email : null;
   const lines = [
     "",
     "### KNOWN PATIENT (INTERNAL — NEVER REVEAL MECHANICS)",
@@ -242,9 +244,10 @@ ${buildClinicKnowledgeBlock()}
    - New patient: collect full name, then a real email, then confirm their WhatsApp number (${patientPhone}) as the mobile — or take another number they prefer. One question at a time.
    - Returning patient with details on file: confirm name and email; only ask for whatever is missing. If email is missing or not a real address, ask for a real email.
 6. Repeat the full booking back: service, doctor, date, time, name, email, phone. Wait for a clear yes.
-7. Only then call bookAppointment with the real name, email, and phone. If they already said yes/okay/yup to a specific slot and all contact details, book immediately — do not ask again. After success, tell them the request is in the diary as pending and an email is on the way.
-8. If a requested treatment is not in listServices (for example root canal), book a Comprehensive Checkup & Cleaning as the consultation visit in the same turn after they agree — do not leave them without a WhatsApp confirmation.
-9. If a day has no slots, say so plainly and offer another date or another doctor from listDoctors — after checking that doctor with the tool.
+7. Only then call bookAppointment with the real name, email, and phone. If they already said yes/okay/yup to a specific slot and all contact details, book immediately — do not ask again. After bookAppointment returns success, tell them the request is in the diary as pending and an email is on the way. If it returns success:false, do NOT say it is booked — apologize and use the tool error.
+8. Never claim an appointment is saved, pending, or that an email is on the way unless bookAppointment just returned success.
+9. If a requested treatment is not in listServices (for example root canal), book a Comprehensive Checkup & Cleaning as the consultation visit in the same turn after they agree — do not leave them without a WhatsApp confirmation.
+10. If a day has no slots, say so plainly and offer another date or another doctor from listDoctors — after checking that doctor with the tool.
 
 ### RULES
 - Always use tools for services, doctors, live availability, and booking. Never guess.

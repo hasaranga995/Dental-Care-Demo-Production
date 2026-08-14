@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users, type User } from "@/db/schema";
 import { phoneIdentity, phoneMatchKey } from "@/lib/vip/phone";
-import { formatPatientEmail, formatPersonName, formatPhoneForStorage } from "@/lib/format-contact";
+import { formatPatientEmail, formatPersonName, formatPhoneForStorage, isPublicPatientEmail } from "@/lib/format-contact";
 
 export type AppRole = "patient" | "doctor" | "admin";
 
@@ -120,15 +120,16 @@ export async function getOrCreateWhatsAppPatient(input: {
       phone: phone || existing.phone,
       ...identity,
     };
+    const nextEmail = email && isPublicPatientEmail(email) ? email : existing.email;
 
     try {
       await db
         .update(users)
-        .set({ ...patch, email: email || existing.email })
+        .set({ ...patch, email: nextEmail })
         .where(eq(users.id, existing.id));
-      return { ...existing, ...patch, email: email || existing.email };
+      return { ...existing, ...patch, email: nextEmail };
     } catch {
-      // A different record already owns this email — keep the existing one.
+      // A different patient already owns this email — keep the existing one.
       await db.update(users).set(patch).where(eq(users.id, existing.id));
       return { ...existing, ...patch };
     }
@@ -183,10 +184,14 @@ export async function getOrCreateWhatsAppPatient(input: {
   throw new Error("Could not create a WhatsApp patient record.");
 }
 
-/** Emails are unique. If a doctor/admin already owns the address, tag a patient copy. */
+/** Prefer the real inbox. Staff (admin/doctor) may share that address with a patient. */
 async function uniquePatientEmail(preferred: string, digits: string): Promise<string> {
+  if (isPublicPatientEmail(preferred)) return preferred;
+
   if (!preferred) {
-    return digits ? `guest.${digits}@patients.dentalcare.local` : `guest.${Date.now()}@patients.dentalcare.local`;
+    return digits
+      ? `guest.${digits}@patients.dentalcare.local`
+      : `guest.${Date.now()}@patients.dentalcare.local`;
   }
 
   const [owner] = await db.select({ role: users.role }).from(users).where(eq(users.email, preferred)).limit(1);

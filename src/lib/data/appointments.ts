@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, lte, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   appointments,
@@ -8,9 +8,12 @@ import {
   users,
   type Appointment,
   type PatientTier,
+  type User,
 } from "@/db/schema";
 import { alias } from "drizzle-orm/pg-core";
 import { CLINIC } from "@/lib/clinic-config";
+import { formatPatientEmail } from "@/lib/format-contact";
+import { phoneMatchKey } from "@/lib/vip/phone";
 
 /**
  * `users` is already joined once for the doctor's name, so the patient side
@@ -90,8 +93,35 @@ function mapRow(row: Record<string, unknown>): AppointmentWithDetails {
   };
 }
 
-export async function getAppointmentsForPatient(patientId: string): Promise<AppointmentWithDetails[]> {
+/**
+ * Appointments for the signed-in account.
+ *
+ * Staff who book via /book are stored on a separate patient row (so they show
+ * in Patients & VIP). Match by user id, email, or phone so their personal
+ * dashboard still lists those visits.
+ */
+export async function getAppointmentsForPatient(
+  patientIdOrUser: string | Pick<User, "id" | "email" | "phone">
+): Promise<AppointmentWithDetails[]> {
   try {
+    const patientId = typeof patientIdOrUser === "string" ? patientIdOrUser : patientIdOrUser.id;
+    const email =
+      typeof patientIdOrUser === "string" ? "" : formatPatientEmail(patientIdOrUser.email);
+    const phoneKey =
+      typeof patientIdOrUser === "string" ? "" : phoneMatchKey(patientIdOrUser.phone);
+
+    const identityClauses = [eq(appointments.patientId, patientId)];
+    if (email) {
+      identityClauses.push(eq(appointments.patientEmail, email));
+      identityClauses.push(eq(patientUsers.email, email));
+    }
+    if (phoneKey) {
+      identityClauses.push(eq(patientUsers.phoneKey, phoneKey));
+      identityClauses.push(
+        sql`regexp_replace(coalesce(${appointments.patientPhone}, ''), '\\D', '', 'g') = ${phoneKey}`
+      );
+    }
+
     const rows = await db
       .select(detailedSelect)
       .from(appointments)
@@ -99,10 +129,18 @@ export async function getAppointmentsForPatient(patientId: string): Promise<Appo
       .innerJoin(doctors, eq(appointments.doctorId, doctors.id))
       .innerJoin(users, eq(doctors.userId, users.id))
       .leftJoin(patientUsers, eq(appointments.patientId, patientUsers.id))
-      .where(eq(appointments.patientId, patientId))
+      .where(or(...identityClauses))
       .orderBy(desc(appointments.appointmentDate));
 
-    return rows.map(mapRow);
+    // Deduplicate if multiple identity clauses match the same row.
+    const seen = new Set<string>();
+    return rows
+      .map(mapRow)
+      .filter((row) => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      });
   } catch (error) {
     console.warn("[data/appointments] getAppointmentsForPatient failed:", error);
     return [];

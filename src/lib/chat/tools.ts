@@ -4,7 +4,9 @@ import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { createAppointment, createGuestAppointment } from "@/actions/appointments";
 import { CLINIC, formatClinicDateLabel, getClinicClock, getClinicOpenStatus, getOperatingHoursList, getWhatsAppHref } from "@/lib/clinic-config";
+import { isPublicPatientEmail } from "@/lib/format-contact";
 import { getAvailableTimeSlots } from "@/lib/data/availability";
+import { normalizeAppointmentTime } from "@/lib/validations";
 import { getAvailableDoctors, getDoctorById } from "@/lib/data/doctors";
 import { CLINIC_FAQS } from "@/lib/data/faqs";
 import { getAllServices, getServiceBySlug } from "@/lib/data/services";
@@ -15,10 +17,7 @@ function isUuid(value: string) {
 }
 
 function isUsableEmail(value: string | null | undefined): value is string {
-  const email = value?.trim().toLowerCase() ?? "";
-  if (!email || !email.includes("@")) return false;
-  if (email.endsWith("@no-email.local")) return false;
-  return true;
+  return isPublicPatientEmail(value);
 }
 
 export type DentalChatChannel = "web" | "whatsapp";
@@ -271,8 +270,9 @@ export function createDentalChatTools(options: DentalChatToolOptions = {}) {
           };
         }
 
+        const appointmentTime = normalizeAppointmentTime(input.appointmentTime);
         const slots = await getAvailableTimeSlots(input.doctorId, input.appointmentDate);
-        if (!slots.includes(input.appointmentTime)) {
+        if (!slots.includes(appointmentTime)) {
           return {
             success: false,
             message: `That time is no longer available. Open slots on ${input.appointmentDate}: ${slots.join(", ") || "none"}.`,
@@ -294,7 +294,7 @@ export function createDentalChatTools(options: DentalChatToolOptions = {}) {
         formData.set("serviceId", input.serviceId);
         formData.set("doctorId", input.doctorId);
         formData.set("appointmentDate", input.appointmentDate);
-        formData.set("appointmentTime", input.appointmentTime);
+        formData.set("appointmentTime", appointmentTime);
         formData.set("patientName", patientName);
         formData.set("patientEmail", patientEmail);
         formData.set("patientPhone", patientPhone);
@@ -310,7 +310,7 @@ export function createDentalChatTools(options: DentalChatToolOptions = {}) {
           ...result,
           dashboardUrl: result.success && channel !== "whatsapp" && knownIdentity ? "/dashboard" : undefined,
           whatsappConfirmation: result.success
-            ? `Your appointment request is in our diary as pending.\n\n• ${patientName}\n• ${input.appointmentDate} at ${input.appointmentTime}\n\nYou'll get an email shortly. Please arrive 10 minutes early.`
+            ? `Your appointment request is in our diary as pending.\n\n• ${patientName}\n• ${input.appointmentDate} at ${appointmentTime}\n\nYou'll get an email shortly. Please arrive 10 minutes early.`
             : undefined,
         };
       },

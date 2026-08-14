@@ -8,10 +8,11 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const userRoleEnum = pgEnum("user_role", ["patient", "doctor", "admin"]);
 
@@ -41,7 +42,7 @@ export const users = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     clerkId: varchar("clerk_id", { length: 191 }).notNull().unique(),
-    email: varchar("email", { length: 255 }).notNull().unique(),
+    email: varchar("email", { length: 255 }).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     role: userRoleEnum("role").notNull().default("patient"),
     phone: varchar("phone", { length: 32 }),
@@ -66,6 +67,12 @@ export const users = pgTable(
     index("users_role_idx").on(table.role),
     index("users_phone_key_idx").on(table.phoneKey),
     index("users_tier_idx").on(table.tier),
+    uniqueIndex("users_email_patient_idx")
+      .on(table.email)
+      .where(sql`${table.role} = 'patient'`),
+    uniqueIndex("users_email_staff_idx")
+      .on(table.email)
+      .where(sql`${table.role} <> 'patient'`),
   ]
 );
 

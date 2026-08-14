@@ -33,44 +33,48 @@ function toWhatsAppText(text: string): string {
     .trim();
 }
 
-function confirmationFromBooking(result: { text?: string; steps?: unknown }): string | null {
-  const blob = JSON.stringify(result.steps ?? []);
-  if (!blob.includes('"success":true')) return null;
+function extractBookingOutcome(result: { text?: string; steps?: unknown; toolResults?: unknown }): {
+  called: boolean;
+  success: boolean;
+  message?: string;
+  confirmation?: string;
+} {
+  const hits: Array<{ success?: boolean; message?: string; whatsappConfirmation?: string }> = [];
 
-  let parsed: { success?: boolean; message?: string; appointmentId?: string } | null = null;
-  try {
-    const steps = result.steps as Array<{
-      toolResults?: Array<{ toolName?: string; output?: { success?: boolean; message?: string; appointmentId?: string } }>;
-    }>;
-    for (const step of steps ?? []) {
-      for (const tool of step.toolResults ?? []) {
-        if (tool.toolName === "bookAppointment" && tool.output?.success) {
-          parsed = tool.output;
-        }
-      }
+  const visit = (node: unknown) => {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
     }
-  } catch {
-    parsed = null;
-  }
+    const obj = node as Record<string, unknown>;
+    const name = obj.toolName ?? obj.tool_name ?? obj.name;
+    const output = (obj.output ?? obj.result ?? obj) as Record<string, unknown> | undefined;
+    if (name === "bookAppointment" && output && typeof output === "object") {
+      hits.push(output as { success?: boolean; message?: string; whatsappConfirmation?: string });
+    }
+    for (const value of Object.values(obj)) visit(value);
+  };
 
-  if (!parsed?.success) {
-    if (blob.includes("whatsappConfirmation")) {
-      try {
-        const match = blob.match(/"whatsappConfirmation":"((?:\\.|[^"\\])*)"/);
-        if (match?.[1]) return match[1].replace(/\\n/g, "\n");
-      } catch {
-        // fall through
-      }
-    }
-    return null;
-  }
-  const existing = (result.text ?? "").toLowerCase();
-  if (existing.includes("appointment") && (existing.includes("received") || existing.includes("pending") || existing.includes("diary"))) {
-    return null;
-  }
+  visit(result.steps);
+  visit(result.toolResults);
+
+  const last = hits.at(-1);
+  if (!last) return { called: false, success: false };
+  return {
+    called: true,
+    success: Boolean(last.success),
+    message: last.message,
+    confirmation: last.whatsappConfirmation,
+  };
+}
+
+function looksLikeBookingConfirmation(text: string): boolean {
+  const t = text.toLowerCase();
   return (
-    parsed.message ||
-    "Your appointment request is in our diary as pending. You'll get an email shortly, and the team will confirm. Please arrive 10 minutes early."
+    (t.includes("diary") && t.includes("pending")) ||
+    (t.includes("you'll get an email") && t.includes("appointment")) ||
+    t.includes("appointment request is in")
   );
 }
 
@@ -131,10 +135,26 @@ export async function replyAsWhatsAppReceptionist(input: {
       temperature: 0.15,
     });
 
-    const bookedNote = confirmationFromBooking(result);
-    const reply =
-      toWhatsAppText(bookedNote || result.text) ||
-      "Give me a moment — could you repeat that so I can help properly?";
+    const booking = extractBookingOutcome(result);
+    const modelText = toWhatsAppText(result.text) || "";
+    let reply = modelText;
+
+    if (booking.called && booking.success) {
+      reply =
+        toWhatsAppText(booking.confirmation || booking.message || modelText) ||
+        "Your appointment request is in our diary as pending. You'll get an email shortly. Please arrive 10 minutes early.";
+    } else if (booking.called && !booking.success) {
+      reply =
+        toWhatsAppText(booking.message || "") ||
+        "I wasn't able to put that in the diary just now. Please send that again, or call us.";
+    } else if (looksLikeBookingConfirmation(modelText)) {
+      reply =
+        "I have your details, but the appointment is not in the diary yet. Please reply YES and I'll save it now.";
+    }
+
+    if (!reply) {
+      reply = "Give me a moment — could you repeat that so I can help properly?";
+    }
 
     await appendWhatsAppTurn(from, text, reply);
     return { reply };

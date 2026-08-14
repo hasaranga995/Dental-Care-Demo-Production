@@ -75,7 +75,7 @@ export async function findPatientByPhone(phone: string): Promise<User | null> {
     const [row] = await db
       .select()
       .from(users)
-      .where(and(eq(users.phoneKey, key), ne(users.role, "doctor")))
+      .where(and(eq(users.phoneKey, key), eq(users.role, "patient")))
       .orderBy(desc(users.tier), desc(users.createdAt))
       .limit(1);
     return row ?? null;
@@ -90,7 +90,11 @@ export async function findPatientByEmail(email: string): Promise<User | null> {
   if (!clean) return null;
 
   try {
-    const [row] = await db.select().from(users).where(eq(users.email, clean)).limit(1);
+    const [row] = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.email, clean), eq(users.role, "patient")))
+      .limit(1);
     return row ?? null;
   } catch (error) {
     console.warn("[vip/identity] findPatientByEmail failed:", error);

@@ -1,5 +1,24 @@
 import { z } from "zod";
 
+/** `9 AM`, `9:00 AM`, `9:00` → `09:00` so chat/WhatsApp times match diary slots. */
+export function normalizeAppointmentTime(raw: string): string {
+  const trimmed = raw.trim().toLowerCase().replace(/\s+/g, " ");
+  const ampm = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i);
+  if (ampm) {
+    let hours = Number(ampm[1]);
+    const minutes = ampm[2] ?? "00";
+    const meridiem = ampm[3].toLowerCase();
+    if (meridiem === "pm" && hours < 12) hours += 12;
+    if (meridiem === "am" && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, "0")}:${minutes}`;
+  }
+  const twentyFour = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (twentyFour) {
+    return `${twentyFour[1].padStart(2, "0")}:${twentyFour[2]}`;
+  }
+  return trimmed;
+}
+
 export const bookingSchema = z.object({
   serviceId: z.string().uuid("Please select a valid service."),
   doctorId: z.string().uuid("Please select a valid doctor."),

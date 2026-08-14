@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { appointments } from "@/db/schema";
 import { getOrCreateCurrentUser, getOrCreateWhatsAppPatient, requireRole, requireUser } from "@/lib/auth";
 import type { User } from "@/db/schema";
-import { bookingSchema, rescheduleSchema, appointmentStatusUpdateSchema } from "@/lib/validations";
+import { bookingSchema, rescheduleSchema, appointmentStatusUpdateSchema, normalizeAppointmentTime } from "@/lib/validations";
 import { enqueueAppointmentConfirmation, enqueueVipAlert } from "@/lib/qstash";
 import { formatPatientEmail, formatPersonName, formatPhoneForStorage } from "@/lib/format-contact";
 import { getDemoPlan } from "@/lib/demo-plan-server";
@@ -14,10 +14,32 @@ import { getDoctorById } from "@/lib/data/doctors";
 import { getServiceBySlug } from "@/lib/data/services";
 import { getAvailableTimeSlots } from "@/lib/data/availability";
 import { rateLimit } from "@/lib/redis";
+import { samePhone } from "@/lib/vip/phone";
 
 async function shouldSendPremierNotifications(): Promise<boolean> {
-  const plan = await getDemoPlan();
-  return plan === "premier";
+  try {
+    const plan = await getDemoPlan();
+    // WhatsApp / QStash have no demo-plan cookie. Those channels are Premier-only.
+    if (!plan) return true;
+    return plan === "premier";
+  } catch {
+    return true;
+  }
+}
+
+function ownsAppointment(
+  currentUser: User,
+  appointment: { patientId: string; patientEmail: string; patientPhone: string }
+) {
+  if (appointment.patientId === currentUser.id) return true;
+  if (
+    formatPatientEmail(appointment.patientEmail) &&
+    formatPatientEmail(appointment.patientEmail) === formatPatientEmail(currentUser.email)
+  ) {
+    return true;
+  }
+  if (currentUser.phone && samePhone(appointment.patientPhone, currentUser.phone)) return true;
+  return false;
 }
 
 export { getAvailableTimeSlots };
@@ -53,7 +75,7 @@ async function persistAppointment(currentUser: User, formData: FormData): Promis
     serviceId: resolvedService?.id ?? rawServiceValue,
     doctorId: formData.get("doctorId")?.toString() ?? "",
     appointmentDate: formData.get("appointmentDate")?.toString() ?? "",
-    appointmentTime: formData.get("appointmentTime")?.toString() ?? "",
+    appointmentTime: normalizeAppointmentTime(formData.get("appointmentTime")?.toString() ?? ""),
     patientName: formData.get("patientName")?.toString() ?? "",
     patientEmail: formData.get("patientEmail")?.toString() ?? "",
     patientPhone: formData.get("patientPhone")?.toString() ?? "",
@@ -203,7 +225,7 @@ export async function cancelAppointment(appointmentId: string): Promise<ActionRe
       return { success: false, message: "Appointment not found." };
     }
 
-    const isOwner = appointment.patientId === currentUser.id;
+    const isOwner = ownsAppointment(currentUser, appointment);
     const isStaff = currentUser.role === "admin" || currentUser.role === "doctor";
     if (!isOwner && !isStaff) {
       return { success: false, message: "You don't have permission to cancel this appointment." };
@@ -231,7 +253,7 @@ export async function rescheduleAppointment(formData: FormData): Promise<ActionR
   const raw = {
     appointmentId: formData.get("appointmentId")?.toString() ?? "",
     appointmentDate: formData.get("appointmentDate")?.toString() ?? "",
-    appointmentTime: formData.get("appointmentTime")?.toString() ?? "",
+    appointmentTime: normalizeAppointmentTime(formData.get("appointmentTime")?.toString() ?? ""),
   };
 
   const parsed = rescheduleSchema.safeParse(raw);
@@ -253,7 +275,7 @@ export async function rescheduleAppointment(formData: FormData): Promise<ActionR
       return { success: false, message: "Appointment not found." };
     }
 
-    const isOwner = appointment.patientId === currentUser.id;
+    const isOwner = ownsAppointment(currentUser, appointment);
     const isStaff = currentUser.role === "admin" || currentUser.role === "doctor";
     if (!isOwner && !isStaff) {
       return { success: false, message: "You don't have permission to reschedule this appointment." };
